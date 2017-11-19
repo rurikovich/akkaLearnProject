@@ -1,0 +1,566 @@
+TM FeedХабрахабрGeektimesТостерМой кругФрилансим Мегапосты: Этичный хакерБлокчейн-обучениеКонференция Хабра
+Публикации
+Пользователи
+Хабы
+Компании
+Песочница
+
+Войти
+Регистрация
+
+xkorpsex
+4 июля в 09:31
+Как использовать implicit'ы в Scala и сохранить рассудок
+Функциональное программирование,
+Scala
+image
+
+Scala богата выразительными средствами, за что ее и не любят опытные программисты на классических ООП-языках. Неявные параметры и преобразования — одна из самых спорных фич языка. Слово "неявные", уже как-бы намекает на что-то неочевидное и сбивающее с толку. Тем не менее, если с ними подружиться, implicit'ы открывают широкие возможности: от сокращения объема кода до возможности многие проверки делать в compile-time.
+
+Хочу поделиться своим опытом по работе с ними и рассказать о том, о чем пока умалчивает официальная документация и блоги разработчиков. Если вы уже знакомы со Scala, пробовали использовать неявные параметры, но все еще испытываете некоторые сложности при работе с ними, либо хотя-бы о них слышали, то этот пост может оказаться вам интересен.
+
+
+Содержание:
+
+Введение
+Неявные параметры
+Неявные преобразования
+Неявные классы
+Цепочки неявных параметров
+Дебаг неявных параметров
+Порядок объявления неявных параметров
+Заключение
+
+Ключевое слово implicit имеет отношение к трем понятиям в Scala: неявные параметры, неявные преобразования и неявные классы.
+
+Неявные параметры
+
+Неявные параметры — это параметры, которые могут быть автоматически переданы в функцию из контекста ее вызова. Для этого в нем должны быть однозначно определены и помечены ключевым словом implicit переменные соответствующих типов.
+
+def printContext(implicit ctx: Context) = println(ctx.name)
+
+implicit val ctx = Context("Hello world")
+
+printContext
+
+Выведет:
+
+Hello world
+
+В методе printContext мы неявно получаем переменную типа Context и печатаем содержимое ее поля name. Пока не страшно.
+
+Механизм разрешения неявных параметров поддерживает обобщенные типы.
+
+case class Context[T](message: String)
+
+def printContextAwared[T](x: T)(implicit ctx: Context[T]) = println(s"${ctx.message}: $x")
+
+implicit val ctxInt = Context[Int]("This is Integer")
+implicit val ctxStr = Context[String]("This is String")
+
+printContextAwared(1)
+printContextAwared("string")
+
+Выведет:
+
+This is Integer: 1
+This is String: string
+
+Этот код эквивалентен тому, как если бы мы явно передавали в метод printContextAwared параметры ctxInt в первом случае и ctxString во втором.
+
+printContextAwared(1)(ctxInt)
+printContextAwared("string")(ctxStr)
+
+Что интересно, неявные параметры не обязательно должны быть полями, они могут быть методами.
+
+implicit def dateTime: LocalDateTime = LocalDateTime.now()
+
+def printCurrentDateTime(implicit dt: LocalDateTime) = println(dt.toString)
+
+printCurrentDateTime
+Thread.sleep(1000)
+printCurrentDateTime
+
+Выведет:
+
+2017-05-27T16:30:49.332
+2017-05-27T16:30:50.476
+
+Более того, неявные параметры-функции могут, в свою очередь, принимать неявные параметры.
+
+implicit def dateTime(implicit zone: ZoneId): ZonedDateTime = ZonedDateTime.now(zone)
+
+def printCurrentDateTime(implicit dt: ZonedDateTime) = println(dt.toString)
+
+implicit val utc = ZoneOffset.UTC
+
+printCurrentDateTime
+
+Выведет:
+
+2017-05-28T07:07:27.322Z
+
+Неявные преобразования
+
+Неявные преобразования позволяют автоматически преобразовывать значения одного типа к другому.
+Чтобы задать неявное преобразование вам нужно определить функцию от одного явного аргумента и пометить ее ключевым словом implicit.
+
+case class A(i: Int)
+case class B(i: Int)
+
+implicit def aToB(a: A): B = B(a.i)
+
+val a = A(1)
+val b: B = a
+println(b)
+
+Выведет:
+
+B(1)
+
+Все что справедливо для неявных параметров-функций, справедливо также и для неявных преобразований: поддерживаются обобщенные типы, должен быть только один явный, но может быть сколько угодно неявных параметров и т. п.
+
+case class A(i: Int)
+case class B(i: Int)
+case class PrintContext[T](t: String)
+
+implicit def aToB(a: A): B = B(a.i)
+implicit val cContext: PrintContext[B] = PrintContext("The value of type B is")
+
+def printContextAwared[T](t: T)(implicit ctx: PrintContext[T]): Unit = println(s"${ctx.t}: $t")
+
+val a = A(1)
+printContextAwared[B](a)
+
+Ограничения
+Scala не допускает применение нескольких неявных преобразований подряд, таким образом код:
+
+case class A(i: Int)
+case class B(i: Int)
+case class C(i: Int)
+
+implicit def aToB(a: A): B = B(a.i)
+implicit def bToC(b: B): C = C(b.i)
+
+val a = A(1)
+val c: C = a
+
+Не скомпилируется.
+Тем не менее, как мы уже убедились, Scala не запрещает искать неявные параметры по цепочке, так что мы можем исправить этот код следующим образом:
+
+case class A(i: Int)
+case class B(i: Int)
+case class C(i: Int)
+
+implicit def aToB(a: A): B = B(a.i)
+implicit def bToC[T](t: T)(implicit tToB: T => B): C = C(t.i)
+
+val a = A(1)
+val c: C = a
+
+Стоит заметить, что если функция принимает значение неявно, то в ее теле оно будет видимо как неявное значение или преобразование. В предыдущем примере для объявления метода bToC, tToB является неявным параметром и при этом внутри метода работает уже как неявное преобразование.
+
+Неявные классы
+
+Ключевое слово implicit перед объявлением класса — это более компактная форма записи неявного преобразования значения аргумента конструктора к данному классу.
+
+implicit class ReachInt(self: Int) {
+  def fib: Int =
+    self match {
+      case 0 | 1 => 1
+      case i => (i - 1).fib + (i - 2).fib
+    }
+}
+
+println(5.fib)
+
+Выведет:
+
+5
+
+Может показаться, что неявные классы это всего лишь способ примешивания функционала к классу, но на самом это понятие несколько шире.
+
+sealed trait Animal
+case object Dog extends Animal
+case object Bear extends Animal
+case object Cow extends Animal
+
+case class Habitat[A <: Animal](name: String)
+
+implicit val dogHabitat = Habitat[Dog.type]("House")
+implicit val bearHabitat = Habitat[Bear.type]("Forest")
+
+implicit class AnimalOps[A <: Animal](animal: A) {
+  def getHabitat(implicit habitat: Habitat[A]): Habitat[A] = habitat
+}
+
+println(Dog.getHabitat)
+println(Bear.getHabitat)
+//Не скомпилируется:
+//println(Cow.getHabitat)
+
+Выведет:
+
+Habitat(House)
+Habitat(Forest)
+
+Здесь в неявном классе AnimalOps мы объявляем что тип значения, к которому он будет применен, будет виден нам как A, затем в методе getHabitat мы требуем неявный параметр Habitat[A]. При его отсутствии, как в строчке с Cow, мы получим ошибку компиляции.
+
+Не прибегая к помощи неявных классов, достичь такого же эффекта нам бы мог помочь F-bounded polymorphism:
+
+sealed trait Animal[A <: Animal[A]] { self: A =>
+  def getHabitat(implicit habitat: Habitat[A]): Habitat[A] = habitat
+}
+
+trait Dog extends Animal[Dog]
+trait Bear extends Animal[Bear]
+trait Cow extends Animal[Cow]
+
+case object Dog extends Dog
+case object Bear extends Bear
+case object Cow extends Cow
+
+case class Habitat[A <: Animal[A]](name: String)
+
+implicit val dogHabitat = Habitat[Dog]("House")
+implicit val bearHabitat = Habitat[Bear]("Forest")
+
+println(Dog.getHabitat)
+println(Bear.getHabitat)
+
+Как видно, в этом случае у типа Animal существенно усложнилось объявление, появился дополнительный рекурсивный параметр A, который играет исключительно служебную роль. Это сбивает с толку.
+
+Цепочки неявных параметров
+
+Этот вопрос рассмотрен в официальном FAQ: http://docs.scala-lang.org/tutorials/FAQ/chaining-implicits.html.
+Как я уже говорил в разделе про неявные преобразования, компилятор не умеет рекурсивно применять неявные преобразования. Тем не менее, он поддерживает рекурсивное разрешение неявных параметров.
+
+Пример ниже добавляет для тех типов, для которых неявно определены соответствующие тайп-классы, метод describe, который будет возвращать их описание на неком подобии человеческого языка (как мы знаем, в runtime в JVM определить точный тип невозможно, так что мы его определяем в compile-time):
+
+sealed trait Description[T] {
+  def name: String
+}
+
+case class ContainerDescr[P, M[_]](name: String)
+                                  (implicit childDescr: Description[P]) extends Description[M[P]] {
+  override def toString: String = s"$name of $childDescr"
+}
+
+case class AtomDescr[P](name: String) extends Description[P] {
+  override def toString: String = name
+}
+
+implicit class Describable[T](value: T)(implicit descr: Description[T]) {
+  def describe: String = descr.toString
+}
+
+implicit def listDescr[P](implicit childDescr: Description[P]): Description[List[P]] =
+  ContainerDescr[P, List]("List")
+
+implicit def arrayDescr[P](implicit childDescr: Description[P]): Description[Array[P]] =
+  ContainerDescr[P, Array]("Array")
+
+implicit def seqDescr[P](implicit childDescr: Description[P]): Description[Seq[P]] =
+  ContainerDescr[P, Seq]("Sequence")
+
+implicit val intDescr = AtomDescr[Int]("Integer")
+
+implicit val strDescr = AtomDescr[String]("String")
+
+println(List(1, 2, 3).describe)
+println(Array("str1", "str2").describe)
+println(Seq(Array(List(1, 2), List(3, 4))).describe)
+
+Выведет:
+
+List of Integer
+Array of String
+Sequence of Array of List of Integer
+
+Description — базовый тип.
+ContainerDescr — рекурсивный класс, который, в свою очередь, требует существования неявного параметра Description для типа описываемого контейнера.
+AtomDescr — терминальный класс, описывающий простые типы.
+
+image
+Cхема разрешения неявных параметров.
+
+Дебаг неявных параметров
+
+При разработке с использованием цепочек из неявных параметров, время от времени вы будете получать ошибки времени компиляции, с довольно туманными названиями, как правило, это будут: ambiguous implicit values и diverging implicit expansion. Чтобы понимать, что от вас хочет компилятор, необходимо разобраться, что же значат эти сообщения.
+
+Ambiguous implicit values
+
+Как правило это ошибка означает что есть несколько конфликтующих неявных значений подходящего типа в одной области видимости, и компилятор не может решить которому отдать предпочтение (о том в каком порядке компилятор проходит области видимости в поиске неявных параметров можно прочитать в этом ответе).
+
+implicit val dog = "Dog"
+implicit val cat = "Cat"
+
+def getImplicitString(implicit str: String): String = str
+
+println(getImplicitString)
+
+При попытке скомпилировать этот код, мы получим ошибку:
+
+Error:(7, 11) ambiguous implicit values:
+ both value dog in object Example_ambigous of type => String
+ and value cat in object Example_ambigous of type => String
+ match expected type String
+  println(getImplicitString)
+
+Решаются эти проблемы довольно очевидно — необходимо оставить только один неявный параметр этого типа в контексте, чтобы компилятор мог определить его однозначно.
+
+Diverging implicit expansion
+
+Эта ошибка означает бесконечную рекурсию при поиске неявного значения.
+
+implicit def getString(implicit str: String): String = str
+
+println(getString)
+
+Ошибка:
+
+Error:(5, 11) diverging implicit expansion for type String
+starting with method getString in object Example_diverging
+  println(getString)
+
+Такого рода ошибки сложнее отслеживать. Убедитесь что у вашей рекурсии есть терминальная ветка. Часто помогает попробовать явно подставить всю цепочку параметров и убедиться, что этот код компилируется.
+
+Флаг компилятора log-implicits
+
+Попробуйте также использовать флаг компилятора -Xlog-implicits — с ним scalac будет логировать шаги разрешения неявных параметров и причины неудач.
+
+image
+Cообщения компилятора о кандидатах для неявных параметров.
+
+Аннотация @implicitNotFound
+
+Вы можете помечать свои классы и трейты аннотацией @implicitNotFound чтобы сделать более человечными сообщения компилятора о том, что неявное значение этого типа не было найдено.
+
+@implicitNotFound("No member of type class NumberLike in scope for ${T}")
+trait NumberLike[T] {
+  def plus(x: T, y: T): T
+  def divide(x: T, y: Int): T
+  def minus(x: T, y: T): T
+}
+
+Порядок объявления неявных параметров
+
+Описания этого аспекта не удалось найти в интернете и пришлось прояснить его экспериментально.
+
+Порядок объявления неявных параметров функции имеет принципиальное значение.
+
+Это значит что мы можем использовать одни неявные параметры для ограничения видимости других. Например, если в области видимости оказалось два значения подходящих типов и нам необходимо выбрать одно из них, не прибегая к уточнению искомого типа.
+
+sealed trait BaseSought
+
+class Target extends BaseSought
+class Alternative extends BaseSought
+
+trait Searchable[T <: BaseSought]
+
+implicit def search[T <: BaseSought](implicit canSearch: Searchable[T], sought: T): T = sought
+
+implicit val target = new Target()
+implicit val alt = new Alternative()
+
+implicit val canSearchTarget = new Searchable[Target] {}
+
+search // : Target
+
+В области видимости находятся два параметра, подходящих по искомому типу [T <: BaseSought], но из-за того, что неявный параметр Searchable[T] определен только для одного из них, мы можем его определить однозначно и не получаем ошибки компиляции.
+
+image
+Успешное разрешение неявных параметров.
+
+Если бы мы определили неявные параметры в другом порядке:
+
+implicit def search[T <: BaseSought](implicit sought: T, canSearch: Searchable[T]): T = sought
+
+то получили бы ошибку:
+
+Error:(17, 1) ambiguous implicit values:
+ both value target in object Example11 of type => Example11.Target
+ and value alt in object Example11 of type => Example11.Alternative
+ match expected type T
+search // : Target
+
+image
+Oops...
+
+Заключение
+
+В заключении я хочу сразу ответить на вопрос, который неизбежно будет задан в комментариях: "Зачем нам нужны такие сложности? На Go вообще без дженериков живут, не говоря уже о такой черной магии."
+
+Да, может быть и не нужны. Совершенно точно имплиситы не нужны, если вы с их помощью хотите сделать ваш код сложнее. После таких языков как, например, Java, программисты думают, что если в языке много инструментов, то они должны их все использовать. На самом же деле следует использовать сложные инструменты только для сложных задач.
+
+Если вы можете красиво решить задачу без имплиситов — сделайте это, если нет — подумайте еще раз.
+
+Если вы понимаете, что на освоение какого-либо инструмента у ваших коллег может уйти существенное время, но вам без него вот здесь никак не обойтись, ограничьте его область применения, сделайте библиотеку с простым интерфейсом, обеспечьте ее качество. И тогда люди дорастут до нее сами к тому моменту, как им придет в голову в ней что-то менять.
+
+image
+Метки:
+scala
+implicit
+functional programming
+type level programming
+Реклама
+ЧИТАЮТ СЕЙЧАС
+О матрице поворота простыми словами
+3,2k
+2
+Опыт выявления одного бага или как не надо оформлять свой код
+6,1k
+14
+Заборы из стеклянных кирпичей, заговор онлайн-переводчиков, удаленный взлом «Боинга»
+1,5k
+0
+Как программисты-самоучки в реальности получают работу
+88k
+503
+Подробный разбор решения crackme01_x64
+5,8k
+3
+Нужны ли разработчики в будущем?
+12,1k
+15
+Реклама
+
++12
+
+ 
+37
+4,6k
+4
+ 
+17,0
+Карма
+0,0
+Рейтинг
+1
+Подписчики
+Илья Симоненко xkorpsex
+Пользователь
+Поделиться публикацией
+ПОХОЖИЕ ПУБЛИКАЦИИ
+16 августа 2014 в 20:01 Back to the Scala Future
++26
+16,9k
+76
+26
+5 марта 2014 в 13:15 Scala Moscow User Group, встреча 14 марта 2014
++16
+5k
+14
+13
+6 февраля 2014 в 18:15 Scala. Всем выйти из сумрака!
++29
+28,5k
+142
+23
+Реклама
+Комментарии 4
+andr1983
+04.07.17 в 16:27
+ 
++1
+
+Очередной пересказ документации это конечно хорошо. Но лучше бы уж, хотя бы, подробнее на тайп классах остановились.
+ 
+xkorpsex
+04.07.17 в 17:00
+ 
+0
+
+Ну не только пересказ, здесь есть вещи, про которые в доках не сказано, например о важности порядка неявных параметров мне в интернете инфы найти вообще не удалось.
+А тайпклассы это отдельная тема, о которой даже на хабре уже много статей, я даже ссылку в тексте оставил.
+ 
+freakru
+04.07.17 в 23:13
+ 
+0
+
+Мой опыт показывает, что implicits как и все неявное в любом случае избегать. Случаи использования таких инструментов нужно как можно больше ограничивать, договаариваться где именно они будут описаны и конечно же документировать.
+
+Как по мне, лучше пусть страдает лаконичность и краткость программы, чем ее понятность.
+ 
+bormotov
+05.07.17 в 22:13
+ 
+0
+
+Довольно часто из лаконичности и краткости следует понятность.
+
+Это я не пытаюсь возразить вам, даже наоборот, поддерживаю — нужно очень четко решать и договариваться где когда и зачем. Потому, что вот эти самые «лаконичность краткость понятность» — очень субъективные штуки.
+Только полноправные пользователи могут оставлять комментарии. Войдите, пожалуйста.
+
+ЧТО ОБСУЖДАЮТ
+Сейчас
+Вчера
+Неделя
+Заборы из стеклянных кирпичей, заговор онлайн-переводчиков, удаленный взлом «Боинга»
+1,5k
+1
+Как следить за трендами на GitHub
+7,9k
+10
+Facebook или Google? Где выгоднее давать рекламу в 2017 году
+5,2k
+6
+Почему программисты не получают работу: четыре страшилки
+36,6k
+488
+CubeDB: минималистичное хранилище счётчиков с многомерными ключами
+4,6k
+8
+ИНТЕРЕСНЫЕ ПУБЛИКАЦИИ
+
+Планета Росс 128 b в 11 св. годах от нас может быть пристанищем для жизни GT
++5
+1,1k
+1
+5
+Заборы из стеклянных кирпичей, заговор онлайн-переводчиков, удаленный взлом «Боинга»
++5
+1,4k
+4
+0
+Arduino в Linux: копаемся в кишках проекта GT
++8
+1,3k
+13
+1
+Китай планирует создать космический челнок с ядерным двигателем к 2040 году GT
++11
+3,3k
+2
+10
+Автоколебания и резонанс
++5
+1,8k
+17
+1
+Реклама
+Аккаунт
+Войти
+Регистрация
+Разделы
+Публикации
+Хабы
+Компании
+Пользователи
+Песочница
+Информация
+О сайте
+Правила
+Помощь
+Соглашение
+Конфиденциальность
+Услуги
+Реклама
+Тарифы
+Контент
+Семинары
+Приложения
+ © 2006 – 2017 «TM»
+Служба поддержки
+Мобильная версия

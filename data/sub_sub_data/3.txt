@@ -1,0 +1,641 @@
+Hibernate Validator 6.0.5.Final released
+Posted by Guillaume Smet    |    Nov 15, 2017    Hibernate Validator  Releases
+We just released the 6.0.5.Final version of Hibernate Validator containing a couple of important bugfixes and some enhancements.
+
+This is a recommended upgrade for everyone using Hibernate Validator 6.0.x and it is a drop-in replacement of 6.0.4.Final.
+
+What’s new
+Bugfixes
+
+Marko noticed an annoying regression potentially leading to random ClassCastException. It was introduced in one of the performance patches of 6.0.3.Final. It may not affect you if you only validate a few objects with a few properties at once (that’s why we didn’t notice it in our test suite) but it definitely makes this upgrade important for everyone.
+
+We also fixed another issue concerning the @Email validator: it was reporting emails with an IDN ASCII domain (the ones starting with xn--) as invalid, whereas they are perfectly valid. Thanks to Andreas Marienborg for reporting this one.
+
+Enhancements
+
+@UniqueElements constraint
+
+Tadhg Pearson contributed a new constraint: @UniqueElements.
+
+The purpose of this constraint is to raise a violation if there are duplicate elements in a collection.
+
+@UniqueElements
+private List<MyBean> beans;
+Consider the case where you use JAX-RS to deserialize XML and JSON beans and Hibernate Validator to validate their content. XML and JSON collections are transformed into Lists. If you then transform them to a Set, the duplicate elements will be silently discarded, whereas this might not be what you want.
+
+The purpose of this constraint is for Hibernate Validator to be able to raise a violation if the input list contains duplicate elements.
+
+Temporal validation tolerance
+
+Daniel Wegener came to us with a very interesting requirement: in distributed systems, you might have a slight delay between getting the current instant and validating it (think of generating the object on the client and then sending it to a backend server for validation). In this case, it is very probable your temporal constraints (e.g. @Future or @Past) will fail.
+
+He came with the idea of introducing a tolerance for temporal validation at the constraint level and we finally decided it was better to make it a global configuration knob.
+
+Thus, you can now define a temporal validation tolerance when you initialize your ValidationFactory:
+
+ValidatorFactory validatorFactory = Validation.byProvider( HibernateValidator.class )
+    .configure()
+    .temporalValidationTolerance( Duration.ofMillis( 10 ) )
+    .buildValidatorFactory();
+Validator validator = validatorFactory.getValidator();
+See our reference documentation for more information about this new feature.
+
+New HibernateConstraintValidator contract
+
+Until now, the only parameter available via ConstraintValidator#initialize() was the constraint annotation. It was a bit limiting as, for some of our validators, we needed additional helpers and access to some of the configuration properties.
+
+We created the HibernateConstraintValidator contract to alleviate this limitation: it introduces an initialize() method taking a ConstraintDescriptor and a HibernateConstraintValidatorInitializationContext, giving access to, for instance, the clock provider.
+
+This contract is marked as incubating. Our ultimate goal is to include it in a future revision of Bean Validation.
+
+Translation updates
+
+The Simplified Chinese translation was updated by Yanming Zhou.
+
+Full changelog
+
+The complete list of fixed issues can be found on our JIRA.
+
+Getting 6.0.5.Final
+To get the release with Maven, Gradle etc. use the GAV coordinates org.hibernate.validator:{hibernate-validator|hibernate-validator-cdi|hibernate-validator-annotation-processor}:6.0.5.Final. Note that the group id has changed from org.hibernate (Hibernate Validator 5 and earlier) to org.hibernate.validator (from Hibernate Validator 6 onwards).
+
+Alternatively, a distribution bundle containing all the bits is provided on SourceForge (TAR.GZ, ZIP).
+
+If you want to benefit from the new features of this version on WildFly, we also provide WildFly patches for WildFly 10.1 and WildFly 11.0 (wait for the synchronization to Maven Central). You can read about how to apply such patches here.
+
+What’s next?
+We will continue to release maintenance releases to fix quickly the issues reported by our users.
+
+We updated our roadmap with the ideas we have for the future. If you want to join us, don’t hesitate to pick a task and come discuss it with us.
+
+Feedback, issues, ideas?
+To get in touch, use the usual channels:
+
+hibernate-validator tag on Stack Overflow (usage questions)
+
+User forum (usage questions, general feedback)
+
+Issue tracker (bug reports, feature requests)
+
+Mailing list (development-related discussions)
+
+Bean Validation development mailing list (discussions about the Bean Validation specification)
+
+
+Hibernate Community Newsletter 21/2017
+Posted by Vlad Mihalcea    |    Nov 7, 2017    Discussions  Hibernate ORM  Newsletter
+Welcome to the Hibernate community newsletter in which we share blog posts, forum, and StackOverflow questions that are especially relevant to our users.
+
+Articles
+Marko Bekhta, the @that_java_guy on Twitter has written a very good series of articles about JPA and Hibernate:
+
+Ways to map JPA many-to-many relationships with additional information
+
+Mapping JPA Enums the right way
+
+A handy utility to combine Enums with the JPA AttributeConverter
+
+Although JPA is a very mature standard, Hibernate still offers many additions that you could definitely benefit from.
+
+One such example is the @NaturalId annotation which, not only it allows you to map business keys on the entity level, but you can even fetch the entity by its natural identifier without even hitting the database.
+
+Eugen Paraschiv, who runs the well-known Baeldung website, has written two articles about Hibernate:
+
+Dynamic Mapping with Hibernate
+
+Hibernate – Mapping Date and Time
+
+The Hibernate Validator team has put up a new benchmark to compare the following Bean Validation implementation:
+
+Hibernate Validator 6.0.4.Final (released on the 25th of October 2017)
+
+Hibernate Validator 5.4.2.Final (released on the 19th of October 2017)
+
+Apache BVal 1.1.2 (released on the 3rd of November 2016)
+
+In the true spirit of open-source software development, the JMH benchmarks are available on GitHub, so you can also run them yourself if you want.
+
+For more details about the benchmark and the results we’ve got, check out this article.
+
+If you want to play with Hibernate Validator, there is even a JavaFX example application that you can use to test this framework.
+
+This article shows you a how you can call a PostgreSQL function from JPA.
+
+For more details about how to call stored procedures and functions that can return both scalar (simple basic types) and even REFCURSOR, which allows you to return table data as a ResultSet, then you should definitely read the following articles:
+
+How to call Oracle stored procedures and functions with JPA and Hibernate.
+
+How to call SQL Server stored procedures and functions with JPA and Hibernate.
+
+How to call PostgreSQL functions (stored procedures) with JPA and Hibernate.
+
+How to call MySQL stored procedures and functions with JPA and Hibernate.
+
+Time to upgrade
+Hibernate Search has been released new versions across three product development branches:
+
+5.6.4
+
+5.7.3
+
+5.8.2
+
+If you’re using Hibernate 5.6, 5.7 or 5.8, then you should check out the new updates.
+
+Questions and answers
+Mapping a PostgreSQL array with Hibernate
+
+Compile-time checks for JPA entities and queries
+
+How does a PreparedStatement avoid or prevent SQL injection?
+
+What is a natural identifier in Hibernate?
+
+How to use Hibernate to cache table data and speed-up queries?
+
+Why does Hibernate generate a CROSS JOIN for an implicit join of a @ManyToOne association?
+
+How to automatically serialize and deserialize JSON string using JPA and Hibernate?
+
+Find or insert based on unique key with Hibernate
+
+What is difference between session.get() and session.byId().load() in Hibernate?
+
+Moving Hibernate instrumentation to build time
+
+Spring, JPA, and Hibernate - how to increment a counter without concurrency issues
+
+What is the difference between a Session and a Connection in Hibernate?
+
+@AttributeOverride doesn’t work with the TABLE_PER_CLASS inheritance strategy
+
+Hibernate throws PSQLException: column is of type numeric, not bytea
+
+SQL Bulk Update with dynamic where conditions
+
+Hibernate second level cache consistency
+
+
+Bean Validation benchmark revisited
+Posted by Guillaume Smet    |    Oct 31, 2017    Hibernate Validator  Bean Validation  Discussions
+As you may know, Bean Validation 2.0 has been released a couple of months ago and Hibernate Validator 6.0 is its reference implementation.
+
+Hibernate Validator is not the only Bean Validation implementation out there, we have one (friendly) competitor called Apache BVal.
+
+Apache BVal has not caught up with Bean Validation 2.0 yet but, as the last benchmark in the Bean Validation field is dated from 2010 (remember "Machete don’t text"?), I thought it was high time to revisit this benchmark and get some fresh numbers.
+
+Especially with all the optimization work we made for 6.0.
+
+Contestants
+The idea is to compare the various Bean Validation implementations and show the progress made by Hibernate Validator 6.0.
+
+We decided to benchmark 3 implementations:
+
+Hibernate Validator 6.0.4.Final (released October 25th 2017)
+
+Hibernate Validator 5.4.2.Final (released October 19th 2017)
+
+Apache BVal 1.1.2 (released November 3rd 2016)
+
+Hibernate Validator 5.4 and Apache BVal 1.1 are implementations of Bean Validation 1.1 so, in this benchmark, we won’t test the new features of Bean Validation 2.0 but only features common to both versions of the spec.
+
+Note that Bean Validation 2.0 only adds new features, it doesn’t remove any of the existing ones.
+
+Benchmarks
+Unit benchmarks
+
+In Hibernate Validator, we maintain a set of JMH benchmarks that we can run against various versions of Bean Validation implementations.
+
+These benchmarks are very simple: they do not perform complex validation as the whole point is to measure the overhead of the validation engine.
+
+For this benchmark series, we will run two different benchmarks:
+
+SimpleValidation: we just test the validation of a simple bean with a couple of constraints. Nothing fancy, just plain bean validation.
+
+CascadedValidation: the idea here is to test the overhead of cascaded validation - the bean only has one very simple constraint but cascades to several other beans of the same type.
+
+Bean Validation benchmark
+
+This benchmark is coming from the aforementioned existing benchmark and has been put together by the Apache BVal team.
+
+I have imported it into GitHub and made it a bit more stable (you can generate the random beans once and use the same set of beans for several benchmarks) and flexible (easier to use different Hibernate Validator implementations). We might move the project under the Hibernate umbrella at one point but for now it’s more of a pet project.
+
+It’s a rather advanced benchmark as it generates a set of classes with a scenario you can tweak and then run validation on the generated beans.
+
+It supports features as groups, inheritance and so on.
+
+The default scenario we use generates 200 different beans.
+
+It’s a decent approximation of what could be a real use case of Bean Validation.
+
+Some numbers (and nice charts!)
+OK, you came here for numbers and charts and, until now, you just got a presentation of the benchmarks. Don’t leave, here they are!
+
+SimpleValidation JMH benchmark
+
+Numbers are in ops/ms, the higher the better.
+
+0
+200
+400
+600
+800
+1000
+1200
+1400
+BVal 1.1.2
+HV 5.4.2.Final
+HV 6.0.4.Final
+CascadedValidation JMH benchmark
+
+Numbers are in ops/ms, the higher the better.
+
+0
+100
+200
+300
+400
+500
+600
+700
+BVal 1.1.2
+HV 5.4.2.Final
+HV 6.0.4.Final
+Bean Validation benchmark
+
+The numbers are in seconds, the lower the better.
+
+0
+5
+10
+15
+20
+25
+BVal 1.1.2
+HV 5.4.2.Final
+HV 6.0.4.Final
+Conclusion
+Hibernate Validator is faster than ever: 6.0.4.Final is 2 to 3 times faster than 5.4.2.Final and Apache BVal, be it in unit benchmarks or the more realistic one.
+
+Two even greater things:
+
+The results are even better in the most realistic benchmark.
+
+During this journey, we also reduced the memory footprint of Hibernate Validator.
+
+In the end, Hibernate Validator 6.0 is a very recommended upgrade, especially if you make heavy usage of Bean Validation (e.g. in a batch).
+
+A few examples of the changes we made
+As for the performance improvements we made, here are two examples:
+
+The initialized validators were cached in a global map and obtained from there. We kept this cache as it is useful when you share a validator between 2 locations (e.g. when you have @NotNull constraints on different properties) but we now also keep a reference to the validator in the ConstraintTree, thus avoiding the map lookup.
+
+Obtaining the attributes of an annotation was quite slow so we now build an AnnotationDescriptor that stores these attributes once and for all and keeps them handy. The key of the aforementioned map is using the annotation and its attributes, and even with hashCode() caching, we had a pretty heavy overhead.
+
+Note that these two changes alone brought a 30% speed improvement.
+
+The reduction of the memory footprint is not the subject of this blog post but here are some of the things we did to reduce the size of the metadata stored by Hibernate Validator:
+
+Reduce the collections to empty/singleton collections as much as possible - this is not negligible in our case as we have quite a lot of them;
+
+Create static default instance to manage the default cases - when in most cases, you end up with the same object that does not include information specific to the situation, it’s really worth it to identify this default case and reuse the same instance;
+
+Optimize the metadata of unconstrained beans/methods/properties.
+
+Note that having our metadata immutable helps a lot with optimization.
+
+If you’re interested in learning more about what we did, you can have a look to these pull requests: 814, 845 and 868.
+
+Lessons learned
+So as with any performance improvements work, we learned a couple of lessons:
+
+This is an interesting journey!
+
+Create benchmarks, measure, measure and measure: the fastest way to do something might not be what you think.
+
+Measure with different scenarios: sometimes you improve the situation somewhere but it gets worse somewhere else.
+
+Reflection is slow - this is not new - but be careful that even the most benign looking operation can be slower than expected (typically Method.getParameters() is not a simple getter, it has a cost).
+
+In a hot path, even the slightest instance creation might introduce some undesired overhead.
+
+Map lookups have a cost that is far from being negligible. Even when caching the hashCode(). Even if your equals() is fast.
+
+A lot of micro optimizations can lead to great improvements.
+
+When introducing a new feature, some raw measurements of the consequences at the early stages might be a good idea. Sometimes, a feature added for a very narrow use case introduces a lot of overhead or makes later optimization very complicated.
+
+We made a lot of progress but we still have one big issue with no solution yet: during the validation phase, we create lots of PathImpl and NodeImpl instances and this situation clearly should be improved. Unfortunately, it is not as easy as it sounds.
+
+Bootstrap cost vs runtime cost
+Bean Validation implementations have to collect a lot of metadata on the validated beans. It is usually done at bootstrap to avoid having this overhead at runtime.
+
+In this benchmark, we only focus our measurements on the runtime cost as, in the lifecycle of an application, the bootstrap cost is usually negligible.
+
+To be fair, from our observations, Hibernate Validator is in general a bit slower than Apache BVal at bootstrap as it collects more information. You shouldn’t even notice it in a real life scenario though.
+
+Reproducing these results
+These benchmarks were run on a typical engineer laptop (Core i7 with 16 GB of memory).
+
+As mentioned earlier, all the benchmarks presented in this article are publicly available and Open Source so feel free to run them by yourselves:
+
+JMH benchmarks
+
+Bean Validation benchmark
+
+Considering the random nature of the Bean Validation benchmark, you might get slightly different results but I’m confident they will highlight similar improvements.
+
+
+Bugfix releases (including CVE) for Hibernate Search 5.6, 5.7 and 5.8
+Posted by Yoann Rodière    |    Oct 26, 2017    Hibernate Search  Releases
+We just published three bugfix releases of Hibernate Search: 5.6.4.Final, 5.7.3.Final and 5.8.2.Final.
+
+Those releases include in particular an upgrade of the Lucene dependency to 5.5.5, which fixes CVE-2017-12629. This vulnerability should only affect you if you use org.apache.lucene.queryparser.xml.CoreParser and feed it with input from untrusted sources: this class is not used by Hibernate Search itself. However, the upgrade is recommended even if you don’t use this class.
+
+What’s new?
+Here are the most notable changes:
+
+HSEARCH-2927: the Lucene dependency was upgraded to 5.5.5, which fixes a remote code execution vulnerability: CVE-2017-12629.
+
+HSEARCH-2868: adding elements to a persistent collection representing the reverse side of an association will now correctly trigger the reindexing of the entity if there is a field on this collection.
+
+HSEARCH-2863: @CalendarBridge(encoding = EncodingType.STRING) will no longer fail at indexing time with a ClassCastException. Thanks to Tomáš Tomek for reporting this!
+
+For a full list of changes, please refer to the release notes:
+
+5.6.4.Final
+
+5.7.3.Final
+
+5.8.2.Final
+
+How to get these releases
+All the necessary information is available (and updated regularly) on hibernate.org:
+
+5.6
+
+5.7
+
+5.8
+
+Feedback, issues, ideas?
+To get in touch, use the following channels:
+
+hibernate-search tag on Stackoverflow (usage questions)
+
+User forum (usage questions, general feedback)
+
+Issue tracker (bug reports, feature requests)
+
+Mailing list (development-related discussions)
+
+
+Hibernate Community Newsletter 20/2017
+Posted by Vlad Mihalcea    |    Oct 25, 2017    Discussions  Hibernate ORM  Newsletter
+Welcome to the Hibernate community newsletter in which we share blog posts, forum, and StackOverflow questions that are especially relevant to our users.
+
+Website new look
+The Hibernate website has got a new look. We hope you like it as well.
+
+Interviews
+We managed to publish two interviews with two very special guests:
+
+Rafael Ponte, a very experienced Java developer, speaker, blogger, and trainer from Brazil, and
+
+Lukas Eder, Java Champion, SQL aficionado, and the creator of jOOQ.
+
+Enjoy reading them, and, if you want to share your awesome story about database systems, JPA, Hibernate, or anything interesting about data, just ping us, and you can be the star of our next interview.
+
+Articles
+For our French-speaking readers, Ippon has published a very good blog post about performance tuning a Spring Data JPA application.
+
+While Hibernate ORM has long been supporting theta-style joins for unrelated entities in JPQL or HQL, since 5.1, you can now even outer join unrelated entities. Check out this article for more details.
+
+Michael Simons, whom we interviewed a while ago, wrote an article about running Hibernate Search with Elastic Search on Pivotal CF.
+
+Now that Hibernate ORM 5.2.12 has been released, you might want to learn more about the change we’ve made for handling literals when executing Criteria API queries.
+
+Ondro Mihályi explains what JPQL extensions are available when using JPA 2.1. If you are using Java EE 7, then you should definitely know more about the JOIN ON clause.
+
+If you are using MySQL with JPA and Hibernate, you should check these 9 High-Performance Tips which will help you run your data access layer at warp-speed.
+
+Time to upgrade
+One of the biggest advantages of using our Hibernate products is the very short release cycle. Since our last newsletter, we have been released:
+
+Hibernate ORM 5.2.12
+
+Hibernate Validator 6.0.3
+
+Hibernate OGM 5.2 Beta1
+
+Questions and answers
+What’s the difference between JPA and Hibernate?
+
+Hibernate is not throwing LazyInitializationException in Spring Boot Project
+
+Pattern for JPA: Generating Data Transfer Object DTO from Entity and merging DTO to database
+
+How to remove child objects from @ManyToMany relation in JPA and Hibernate when there are lots of children?
+
+How to save Lists of Lists (e.g. List<List<String>>) in JPA and Hibernate
+
+How to join two unrelated entities using JPA and Hibernate
+
+What does the Hibernate proxy object contain?
+
+Mapping JSON object to Hibernate entity
+
+Hibernate throws org.hibernate.LazyInitializationException - could not initialize proxy - no Session
+
+Join and fetch just some properties not all the collection with JPA and Hibernate
+
+How to persist entities using multiple processing threads with JPA and Hibernate
+
+How to optimize infamous HHH000104: firstResult/maxRes…​ in memory
+
+Hibernate throws Cascade=“all-delete-orphan” collection no longer referenced
+
+Hibernate throws ConstraintViolationException during flush
+
+JPA Criteria Query multiple roots - optimize cross join
+
+Customize Secondary Table - add where clause condition
+
+IllegalStateException: Session/EntityManager is closed
+
+Bytecode Enhancement - run vs debug
+
+Hibernate 5.2.11 throws NoSuchMethodError Table.indexes()
+
+
+Hibernate Validator 6.0.4.Final released
+Posted by Guillaume Smet    |    Oct 25, 2017    Hibernate Validator  Releases
+Another week, another Hibernate Validator release. You might ask why we release a new maintenance version of the 6.0 branch so soon: it is mostly to provide a patch for WildFly 11 Final but it is also packed with nice enhancements!
+
+This is a recommended upgrade for everyone using Hibernate Validator 6.0.x and it is a drop-in replacement of 6.0.3.Final.
+
+What’s new
+A patch for WildFly 11 Final
+
+It has been a while since we provide patches for WildFly so that you can easily use the latest versions of Hibernate Validator on WildFly.
+
+With the release of WildFly 11 Final, we thought it would be nice to provide WildFly users with a patch as soon as possible.
+
+You can get the patch from Maven Central here (wait for the synchronization) and you can learn about how to apply such patches there.
+
+Note that for the time being, we still provide a patch for WildFly 10.1.
+
+Performance improvements
+
+We studied a couple of issues reported by our users and we made a few more performance improvements. Validation will be faster now in many cases.
+
+I’m working on a specific blog post with some nice benchmark results. Stay tuned.
+
+Full changelog
+
+The complete list of fixed issues can be found on our JIRA.
+
+Getting 6.0.4.Final
+To get the release with Maven, Gradle etc. use the GAV coordinates org.hibernate.validator:{hibernate-validator|hibernate-validator-cdi|hibernate-validator-annotation-processor}:6.0.4.Final. Note that the group id has changed from org.hibernate (Hibernate Validator 5 and earlier) to org.hibernate.validator (from Hibernate Validator 6 onwards).
+
+Alternatively, a distribution bundle containing all the bits is provided on SourceForge (TAR.GZ, ZIP).
+
+If you want to benefit from the new features of this version on WildFly, we also provide WildFly patches for WildFly 10.1 and WildFly 11.0 (wait for the synchronization to Maven Central). You can read about how to apply such patches here.
+
+What’s next?
+We will continue to release maintenance releases to fix quickly the issues reported by our users.
+
+We updated our roadmap with the ideas we have for the future. If you want to join us, don’t hesitate to pick a task and come discuss it with us.
+
+Feedback, issues, ideas?
+To get in touch, use the usual channels:
+
+hibernate-validator tag on Stack Overflow (usage questions)
+
+User forum (usage questions, general feedback)
+
+Issue tracker (bug reports, feature requests)
+
+Mailing list (development-related discussions)
+
+Bean Validation development mailing list (discussions about the Bean Validation specification)
+
+
+Meet Lukas Eder
+Posted by Vlad Mihalcea    |    Oct 23, 2017    Discussions  Hibernate ORM  Interview
+In this post, I’d like you to meet Lukas Eder, Java Champion, SQL aficionado, and data access framework developer.
+
+Lukas Eder, align=
+Hi, Lukas. Would you like to introduce yourself?
+Hi Vlad, I’m @lukaseder, founder and CEO of Data Geekery, the company behind jOOQ. I am a Java Champion and Oracle ACE, and I will surely get all the other cool badges from the other vendors as well, soon. I have millions of Stack Overflow reputation, reddit karma, and other important Internet points, and I was recently endorsed on LinkedIn not only for XML, but also for Microsoft Excel reactive programming - the only tool even more powerful than SQL.
+
+Apart from those remarkable accomplishments ;), I’m mostly coding and tuning Java, SQL, and PL/SQL around jOOQ and for customers of Data Geekery’s consultancy services. I’m also delivering public and in-house SQL trainings, and I’m generally trying to make the lives of Java developers who work with SQL easier.
+
+You can meet me at conferences where I talk about the awesomeness of SQL to those poor souls whose enterprise software architects coerce them to write business logic in a non-SQL, 3GL - or those weird developers who choose to do so on their own. Come see my talks, you will see the light!
+
+I always wanted to know how jOOQ was born. Can you tell us how it all started? 
+The spirit of jOOQ was born in the early 1800s when Ada Lovelace essentially invented programming. She surely would have predicted it. Once algorithms were a thing, the world was now ready for SQL, and thus for jOOQ. After her impressive work, however, many detours were taken, and it took another 150 years until the invention of SQL, and roughly, until 2009, when it became clear that SQL has to be part of Java as well. Thus: jOOQ. 
+
+When focusing only on the 2009 bit of history, jOOQ happened "by accident". At the time, in essence, everyone was creating home-grown query builders to abstract away the pain of concatenating the strings "A = 1" and "B = 2", connecting them with " AND ", and occasionally, with " OR ". Overall global efforts invested in that area can only be measured in terms of geologic time scales ("person-eons"). Those efforts all went to waste because even within the same company, several teams made the same efforts again and again.
+
+Most of these in-house tools could roughly handle SELECT .. FROM .. WHERE. JOINs were hardly supported (or even understood), and if you added GROUP BY to the mix, there was a Cambrian explosion of bugs, patches, and further person-eons of maintenance work.
+
+All this meant that there had to be an industry need, a market, for a tool that everyone can use. A tool to make sure this problem of building SQL strings will be solved for good. And there were such tools! At the time, there were at least 10 proof-of-concept style open source libraries, and perhaps one that took it a step further called QueryDSL. But none of them went "all in" on the SQL language. Again, most of them handled SELECT .. FROM .. WHERE, and then pretty much stopped at that.
+
+jOOQ had to be made and stay here for good.
+
+When it comes to persisting and fetching data, what’s the approach taken by jOOQ? How does it compare to the transactional write-behind one employed by Hibernate?
+jOOQ is "just" typesafe JDBC/SQL, i.e. it is an API that allows its users to write SQL, not as strings (as with JDBC), but as compile-time type checked SQL expression trees that just happen to look an awful lot like actual SQL. So, the question isn’t really what the approach for persisting and fetching data, but for writing the queries to do so.
+
+You could compare jOOQ with JPA’s Criteria Query API, which is "just" typesafe JPA/JPQL - although I must say that Criteria Query could have been better executed. Writing an internal DSL (Domain-Specific Language) is really hard. The implications in terms of API maintenance and keeping Backward Compatibility are very tricky. I think Criteria Query was added to the JPA specification prematurely. Now that we have it, it can never really be changed, only, perhaps, superseded.
+
+Now, if you want to compare the approaches of writing queries (SQL, JDBC, jOOQ, JPA native queries) vs the "transactional write-behind" approach (JPA, Hibernate, other ORMs), the discussion gets a bit more complex, and not strictly tool related, but architecture related.
+
+In short, the SQL approach is more bulk data processing oriented (for both reads and writes), whereas the JPA approach is more CRUD oriented. SQL is more stateless/sessionless/side-effect free whereas JPA is stateful/"sessionful"/imperative. SQL runs set based computational logic in the database, giving access to the sophistication of modern SQL optimisers, whereas JPA offers running record based computational logic in the client, giving access to the vast possibilities of Java libraries and client-side processing.
+
+So, clearly, the two things represent not just different technologies, but different paradigms and mindsets.
+
+However, this still doesn’t explain why each approach could be the preferred one in a given situation. And it’s a really tricky question. I have personally only ever worked with systems where the SQL approach was clearly more advantageous (large data sets, thousands of tables, dozens of joins needed per query, thousands of concurrent queries, thousands of stored procedures, few concurrent writes, mixed OLTP and OLAP workloads) - but I know many people and their systems, where pure SQL would be detrimental for the complex transactional patterns they employ and JPA really shines.
+
+Ideally, there’s a mix of both worlds: SQL and JPA - or jOOQ and Hibernate, which are concrete implementations. Because ultimately, one size never fits all, and you will have reporting and analytics (SQL) in an OLTP/CRUD (JPA) application, to give a simple example.
+
+Of course, I have blogged about this in the past.
+
+How easy it would be to integrate jOOQ and Hibernate and what would be the main benefit of combining both frameworks?
+There are different ways to integrate.
+
+Integrating query API
+
+From a mere API perspective, it is very easy. As of jOOQ 3.10, you can simply extract any SQL string and bind variable sets directly from your jOOQ query, send that query to the Hibernate/JPA native query API, and let Hibernate sort out the mapping according to JPA standards. This works with:
+
+mapping ordinary native queries to Object[] record representations
+
+mapping "enriched" native queries to @SqlResultSetMapping specifications
+
+mapping ordinary native queries to entities
+
+Specifically, the latter can be quite powerful. Sometimes, you do want to get managed entities as a result, but you cannot express the complexity of your query in a JPQL query/Criteria Query/named entity graph. Simple examples involve using unions, common table expressions, derived tables, lateral joins, and many other features that are not well supported in JPQL. 
+
+In that case, SQL shines, and from a performance and maintainability perspective, it is almost always the better option compared to fetching all data into memory and implementing the logic in Java. All you have to do is make sure you select all the columns needed for the entity graph that you want to materialize, possibly using some Hibernate-specific ResultTransformer (look who wrote about that topic ;) ), and you’re done.
+
+Examples for the above can be seen in the jOOQ manual.
+
+A future jOOQ version, hopefully, version 3.11 (for workgroups ;), will further simplify the integration by binding the jOOQ SPIs directly to an EntityManager. This will remove the need for extracting SQL strings and bind variables from jOOQ queries and allow for executing the query directly using jOOQ API but on the EntityManager. I’m really looking forward to this feature, which makes using the best of both worlds really simple.
+
+Integrating code generation
+
+Another cool integration point is the jOOQ code generation based off JPA annotated entities, with Hibernate being used behind the scenes. Many projects already use Hibernate and want to run a couple of reports or entity queries with SQL, and thus with jOOQ. They can now reverse-engineer the JPA annotated entities using Hibernate, generate an in-memory H2 database from them, and jOOQ can read that H2 database to generate jOOQ code.
+
+Even if I personally prefer working with DDL, many projects see their JPA annotated entities as their primary source of schema information, so that approach suits them really well.
+
+This feature is documented here.
+
+Integrating on a JDBC level
+
+A lesser-known integration point is the fact that jOOQ exposes itself through at least two low-level, JDBC-based SPIs:
+
+the parser API
+
+the mocking API
+
+In both cases, jOOQ can proxy a JDBC Connection and do things like:
+
+Parsing the SQL string that gets sent to jOOQ and transforming the SQL expression tree to something else, e.g. by applying a VisitListener. This could be used to implement client-side row-level security, or sophisticated multi-tenancy, or other things. Also, the parsed SQL string can be translated to other SQL dialects (although that is not really useful in Hibernate, which is already dialect agnostic). A future jOOQ version will be able to apply custom formatting to arbitrary SQL strings, so this could work nicely as a formatting utility for Hibernate-generated SQL, for logging purposes.
+
+The SQL statement can be mocked through a single SPI, returning "fake" results in some cases. In simple setups, this can be quite powerful to intercept queries both for testing and for other purposes.
+
+Again, these features do not expose jOOQ to the client, but hide jOOQ behind JDBC, so that they can work with JDBC directly, or with Hibernate.
+
+For many Java developers, the level of knowledge of SQL is rather basic. What awesome SQL features would you recommend Java developers to start learning more about? 
+That’s true, very unfortunately. I would recommend this:
+
+First off, don’t be afraid of SQL. SQL is a very simple functional programming language that just happens to have a rather quirky, arcane syntax. THE MORE YOU YELL, THE FASTER IT RUNS, RIGHT? (Credit for this joke to Aleksey Shipilëv). But in order to truly understand SQL (both basic and sophisticated SQL), I think it is important to remember where it came from Relational Algebra. If this is properly understood, in particular, the fact that most operations are just syntax sugar over basic set operations like set unions and cartesian products, then the language will make a lot more sense, and it becomes clear how powerful it really is.
+
+Then, I suggest reading this really cool blog about SQL ;) and looking out for a couple of more advanced features. The most important ones are common table expressions (CTE) and window functions. CTE is super easy to understand and will add value immediately when writing complex queries. Window functions are a bit more tricky, but I’d say also much more rewarding on an everyday basis. Once these are understood, a vast number of other features are worth visiting. Sophisticated examples are shown on my post "10SQL Tricks That You Didn’t Think Were Possible", but there are many other, simpler features that can be used on a daily basis. I will cover more of them on the blog in the future, I’m also writing a book (this does take longer than expected, with 2 kids…​), and of course, these topics are covered in my SQL training.
+
+We always value feedback from our community,  so can you tell us what features you’d like us to add to make easier for other data access frameworks to integrate with JPA or Hibernate?
+I know we’ve discussed the fact that the existing ResultTransformer SPI will be improved in Hibernate 6.0. This is probably one of the most interesting SPIs for other data access frameworks, like jOOQ. I hope the new version will be standardized in JPA and allow for really easy custom transformation between flat result sets and entity graphs.`   From my perspective, I’ve always wondered why popular ORMs like Hibernate do everything in a single tool, mostly:
+
+the modeling part
+
+the mapping part
+
+the querying part
+
+the session/cache management part
+
+If these parts could be split into different and independent JPA/Hibernate modules, the whole toolchain could be even more powerful. For instance, if there was a Hibernate mapping library that cares only about how to map between flat data and annotated entity graphs (but wouldn’t worry about managing such entities, or about fetching them, as that would belong to the session/cache management part, or the querying part), that would be really useful.
+
+Thank you, Lukas, for taking your time. It is a great honor to have you here. To reach Lukas, you can follow him on Twitter.
+
+
+Hibernate Validator 6.0.3.Final released
+Posted by Guillaume Smet    |    Oct 19, 2017    Hibernate Validator  Releases
+And here comes another maintenance release of Hibernate Validator 6.0.
+
+A lot of thanks to our users and contributors for reporting issues and submitting pull requests, it was definitely a great team effort.
+
+This is a recommended upgrade for everyone using Hibernate Validator 6.0.x and it is a drop-in replacement of 6.0.2.Final.
+
+What’s new
+Towards a ScriptEv

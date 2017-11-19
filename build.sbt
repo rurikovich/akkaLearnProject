@@ -1,4 +1,4 @@
-name := "hello-akka"
+name := "akka-learn-project"
 
 version := "1.0"
 
